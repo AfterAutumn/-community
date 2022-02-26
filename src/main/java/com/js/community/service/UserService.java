@@ -1,6 +1,8 @@
 package com.js.community.service;
 
+import com.js.community.dao.LoginTicketMapper;
 import com.js.community.dao.UserMapper;
+import com.js.community.entity.LoginTicket;
 import com.js.community.entity.User;
 import com.js.community.utils.CommunityConstant;
 import com.js.community.utils.CommunityUtil;
@@ -31,6 +33,9 @@ public class UserService implements CommunityConstant {
 
     @Autowired
     private TemplateEngine templateEngine;
+
+    @Autowired(required = false)
+    private LoginTicketMapper loginTicketMapper;
 
     @Autowired
     private  MailClient mailClient;
@@ -103,4 +108,78 @@ public class UserService implements CommunityConstant {
         }
     }
 
+    //登录业务
+    public Map<String, Object> login(String username, String password, int expiredSeconds) {
+        Map<String, Object> map = new HashMap<>();
+
+        // 空值处理
+        if (StringUtils.isBlank(username)) {
+            map.put("usernameMsg", "账号不能为空!");
+            return map;
+        }
+       //密码为空
+        if(StringUtils.isBlank(password))
+        {
+            map.put("passwordMsg","密码不能为空");
+            return map;
+        }
+
+        // 验证账号是否存在
+        User user = userMapper.queryByName(username);
+        if(user==null)
+        {
+            map.put("usernameMsg", "该账号不存在!");
+            return map;
+        }
+
+
+        // 验证状态
+        if (user.getStatus() == 0) {
+            map.put("usernameMsg", "该账号未激活!");
+            return map;
+        }
+
+        // 验证密码，验证的是用户的密码加上用户加密的随机字符串之后生成的密码是否正确
+        String s = CommunityUtil.MD5(password + user.getSalt());
+        if(!s.equals(user.getPassword()))
+        {
+            map.put("passwordMsg","密码错误！");
+            return map;
+        }
+
+        // 生成登录凭证,存放到数据库中的login_ticket表
+        LoginTicket loginTicket=new LoginTicket();
+        loginTicket.setUserId(user.getId());
+        loginTicket.setTicket(CommunityUtil.generateUUID());
+        loginTicket.setStatus(0);
+        loginTicket.setExpired(new Date(System.currentTimeMillis() + expiredSeconds * 1000));
+        loginTicketMapper.insertLoginTicket(loginTicket);
+
+
+        map.put("ticket", loginTicket.getTicket());
+        return map;
+    }
+
+    //退出
+    public void logout(String ticket)
+    {
+        loginTicketMapper.updateLoginTicket(ticket,1);
+    }
+
+    public LoginTicket findLoginTicket(String ticket) {
+        return loginTicketMapper.selectLoginTicket(ticket);
+    }
+
+
+    //更新头像路径
+    public int updateHeader(int id,String header_url)
+    {
+        return userMapper.UpdateHeader(id,header_url);
+    }
+
+    //修改密码  这里传入的password应该为加密后的
+    public int updatePassword(int id,String password)
+    {
+        return userMapper.UpdatePassword(id,password);
+    }
 }
