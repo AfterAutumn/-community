@@ -45,6 +45,11 @@ public class UserService implements CommunityConstant {
         return userMapper.queryById(userId);
     }
 
+    public User queryUserByName(String username)
+    {
+        return userMapper.queryByName(username);
+    }
+
     //注册业务
     public Map<String,Object>  register(User user)
     {
@@ -109,7 +114,7 @@ public class UserService implements CommunityConstant {
     }
 
     //登录业务
-    public Map<String, Object> login(String username, String password, int expiredSeconds) {
+    public Map<String, Object> login(String username, String password, long expiredSeconds) {
         Map<String, Object> map = new HashMap<>();
 
         // 空值处理
@@ -152,8 +157,10 @@ public class UserService implements CommunityConstant {
         loginTicket.setUserId(user.getId());
         loginTicket.setTicket(CommunityUtil.generateUUID());
         loginTicket.setStatus(0);
-        loginTicket.setExpired(new Date(System.currentTimeMillis() + expiredSeconds * 1000));
+        loginTicket.setExpired(new Date(System.currentTimeMillis() + (expiredSeconds*1000) ));
         loginTicketMapper.insertLoginTicket(loginTicket);
+        //debug
+        System.out.println("登录时候的Expired"+loginTicket.getExpired());
 
 
         map.put("ticket", loginTicket.getTicket());
@@ -163,7 +170,13 @@ public class UserService implements CommunityConstant {
     //退出
     public void logout(String ticket)
     {
+        //LoginTicket loginTicket = loginTicketMapper.selectLoginTicket(ticket);
+        //System.out.println("退出时候的Expired"+loginTicket.getExpired());
+
+
         loginTicketMapper.updateLoginTicket(ticket,1);
+        //LoginTicket loginTicket2 = loginTicketMapper.selectLoginTicket(ticket);
+        //System.out.println("22222退出时候的Expired"+loginTicket2.getExpired());
     }
 
     public LoginTicket findLoginTicket(String ticket) {
